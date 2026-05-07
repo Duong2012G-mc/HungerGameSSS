@@ -5,6 +5,111 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [4.6.0] — Full Bug Fix & Improvement Pass (2026-05-05)
+
+### Fixed — 46 bugs across 35 files
+
+#### Critical — Task & Memory Leaks
+
+- **BUG-CM-01** `CooldownManager` repeating task never cancelled on reload → added `shutdown()`, called from `onDisable()`
+- **BUG-MAIN-01** Game-loop `BukkitRunnable` was anonymous, never cancelled → stored `gameLoopTask`, cancelled in `onDisable()`
+- **BUG-AM-01** `new NamespacedKey(plugin, "hg_ability")` created on every interact/hit/move → cached as `final abilityPdcKey` field
+- **BUG-BASE-02** `BaseAbility.onDeath()` called `validateCanUse()` → blocked cleanup when arena state was `ENDING` at last kill
+- **BUG-CS-02** `CloudSword` block-expiry task had no handle → glass blocks not restored on disable
+- **BUG-HB-02** `HermesBoots` passive task had no handle + `lastShift` map never cleared on quit/death
+- **BUG-RE-01** `ReinforcedElytra` passive task had no handle + `explosionCooldowns` never cleared
+- **BUG-VW-02** `VillagerWand` stale-entry cleanup task had no handle → leaked on reload
+- **BUG-MJ-01** `Mjolnir`: no `performDeath()` → `ItemDisplay` entity leaked, item permanently lost on death
+- **BUG-SB-02** `ShadowBlade`: no global `cleanup()` → players stayed invisible permanently after `/reload`
+- **BUG-RH-03** `RavagerHorn`: no global `cleanup()` → ravager entities roamed arena world after reload
+- **BUG-GH-03** `GolemHammer`: `inAir` map never cleared on quit/death → stale KB resist
+- **BUG-LS-02** `LichStaff`: no global `cleanup()` → stale ammo entries persisted between matches
+- **BUG-SG-02** `SoulGauntlet`: no global `cleanup()` → soul charges persisted between matches
+- **BUG-VS-02** `VoidStaff`: 3 state maps never cleared on full shutdown
+- **BUG-WS-02** `WitherSickles`: offhand copies not removed, cooldowns not cleared on shutdown
+- **BUG-DN-01** `DeathNote`: used `onQuit`/`onDeath` bypassing BaseAbility lifecycle chain
+- **BUG-LISTENER-01** `AbilityListener.onPlayerMove`: missing null check on `event.getTo()` → NPE risk
+
+#### High — State Management
+
+- **OPT-REG-01** `AbilityRegistry.getAbility()` was O(42) triple-fallback loop → O(1) normalized `HashMap` lookup
+- **OPT-BASE-01** Config key prefix `"abilities.xxx."` rebuilt on every config call → cached in constructor
+- **OPT-BASE-02** `BaseAbility.execute()` 14-arm switch-case → `EnumMap<TriggerType, Consumer>` dispatch
+- **OPT-DISP-01+02** `AbilityDispatcher`: debug logging on miss + eliminated duplicate `NamespacedKey` copy
+- **OPT-UPT-01** `UnifiedPassiveTicker` now skips spectators, dead players, non-active arenas
+- **OPT-AD-01** `ArmadilloDetonator`: per-entity `BukkitRunnable` → single unified per-player ticker
+- **OPT-BB-01** `BeehiveBlaster`: 4-tick polling per bee → `EntityDamageByEntityEvent` listener (zero tasks)
+- **OPT-AB-02+03** `ArtemisBow`: per-arena homing arrow cap + live count in passive HUD
+- **OPT-CC-01** `CorruptedCrossbow`: gravity `0.04` flat → `0.05` + `1%` horizontal drag (matches vanilla)
+- **IMP-LISTENER-01** All combat/interact `@EventHandler` handlers now have `ignoreCancelled = true`
+- **IMP-VM-01+02** `VeinMinerListener`: hard cap 128 blocks + spread breaking across ticks
+- **BUG-MJ-01** `Mjolnir` global `cleanup()` removes all display entities
+
+#### Medium — Improvements
+
+- **IMP-CTX-01** `AbilityContext`: defensive `item.clone()` + `requiresArena()` validation + `getLocationSafe()`
+- **IMP-UTILS-01** `AbilityUtils`: `findSafeLanding`, `degradeRandomArmorPiece`, `isFriendlyFire`, `tickProjectile`, `removeAfter`, `distanceSquared`-first AoE check
+- **IMP-CD-02** `CooldownManager.generateProgressBar()` uses `§` codes consistent with downstream serializer
+- **IMP-MAIN-01+02** `Main.onEnable()` split into `registerManagers/Listeners/Commands/postStartup` + early Java/Paper validation
+- **ARCH-MS-01+02+03** `MatchService` FSM: `transition()` method + `BorderTask/FeastTask/DeathmatchTask` + `ArenaDeathmatchEvent`
+- **OPT-CD-01** `CooldownManager`: purge offline players from `activeDisplayItem` in periodic cleanup
+- **A1-1+3** `Ability.java`: ISP sub-interfaces (`ActiveAbility`, `PassiveAbility`, `ProjectileAbility`, `ListenerAbility`) + full Javadoc
+- **A1-10+11** `AbilityRegistry`: ServiceLoader SPI discovery + config-driven `disabled`/`enabled-only` overrides
+- **A1-17** `BaseAbility`: `AbilityGuard` chain-of-responsibility + `passesGuards()` replaces 5 duplicated validate/cooldown blocks
+- **A1-18** `BaseAbility`: `getConfigStringList()` + `getConfigSection()` helpers
+- **A1-19** `Aiglos`: configurable AOE shape (`sphere` / `cylinder`) via `aoe_shape` config key
+- **A1-23** `CloudSword`: self-listener removed; fall-cancel centralised in `AbilityListener.onFallDamageCancelCloud`
+- **A1-26** 4 abilities (`BeehiveBlaster`, `ArmadilloDetonator`, `RavagerHorn`, `GhastlyWhistle`): `setRemoveWhenFarAway(true)` on all custom entity spawns
+- **A1-S1** `AbilityServices`: lightweight DI context replacing raw `Main` accessor calls
+- **A1-S2** `@AbilityTrigger` + `@PassiveTick` annotations for future APT code generation
+- **A1-S3+A2-S3** `ArenaEntityTracker`: unified entity lifecycle manager (track/release/prune by owner, arena, ability)
+- **A1-S4+A2-S2** `ParticleThrottle`: throttle + `spawnDeferred()` based on arena player count
+- **A1-S5** `AbilityMetrics`: internal activation/blocked counter with `Snapshot` record
+- **A1-S6** `ConfigSchemaValidator`: declarative YAML schema validation replacing manual `assertRange()` loop
+- **A2-4** `Main`: `ComponentLogger` (SLF4J) field + `clog()` accessor
+- **A2-9+10** `ArenaManager.processQueue()`: async chunk pre-loading + BossBar build progress
+- **A2-11** `CornucopiaBuilder` now injectable via `plugin.getCornucopiaBuilder()`
+- **A2-17** `Arena.java`: `ArenaBlockRestorer` + `ArenaLegendaryTracker` component objects extracted; old getters kept as `@Deprecated` delegation
+- **A2-18** `Ingredient` + `LootEntry` converted to Java 21 records with compact constructors
+- **A2-20** `MatchService.resetArena()`: block restoration now async via `ArenaBlockRestorer` + `processQueue()`
+- **A2-22** VeinMiner disabled by default; opt-in via `arena.builtin-veinminer: true`
+- **A2-S5** `HungerGamesAPI`: public Developer API for custom ability registration + arena queries
+- **A2-S6** `MatchState`: `isActive()`, `isJoinable()`, `isEnding()`, `match()` functional switch
+
+### New Files
+| File | Purpose |
+|---|---|
+| `ability/AbilityServices.java` | Lightweight DI context |
+| `ability/AbilityMetrics.java` | Activation/blocked counters |
+| `ability/annotation/AbilityTrigger.java` | Trigger handler annotation |
+| `ability/annotation/PassiveTick.java` | Passive tick annotation |
+| `api/HungerGamesAPI.java` | Public Developer API |
+| `manager/ArenaEntityTracker.java` | Unified entity lifecycle tracker |
+| `model/ArenaBlockRestorer.java` | Block-change tracking + restore |
+| `model/ArenaLegendaryTracker.java` | Legendary placement + hologram lifecycle |
+| `util/ParticleThrottle.java` | Particle throttle + deferred spawn |
+| `util/ConfigSchemaValidator.java` | Declarative YAML schema validation |
+| `resources/paper-plugin.yml` | Modern Paper plugin descriptor |
+
+### Config changes
+```yaml
+# New keys added (all have safe defaults — no action required):
+arena:
+  builtin-veinminer: false        # VeinMiner now opt-in (was always-on)
+  show-build-progress: true       # BossBar during arena build
+abilities:
+  disabled: []                    # blacklist ability names
+  enabled-only: []                # whitelist mode (empty = disabled)
+  spi-override-allow: false       # allow SPI abilities to replace built-ins
+```
+
+### Breaking Changes
+- `Ingredient.mat` / `Ingredient.amount` public fields **removed** → use `ingredient.material()` / `ingredient.amount()`
+- VeinMiner **disabled by default** — set `arena.builtin-veinminer: true` to restore previous behaviour
+- All other changes are backwards-compatible with existing saves, ability YAMLs, and config.yml
+
+---
+
 ## [4.5.9] — Bug Fix Pass 5 (2026-04-24)
 
 ### Fixed — 3 bugs across 3 files
