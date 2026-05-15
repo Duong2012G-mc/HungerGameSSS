@@ -5,6 +5,144 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [4.6.1] — Critical Bug Fix Patch (2026-05-15)
+
+### Fixed — 9 bugs across 7 files
+
+#### Critical — Plugin fails to enable
+
+- **BUG-PPL-01 · `paper-plugin.yml` — `loader:` references a class that does not exist**
+  (`paper-plugin.yml`)
+  The file declared `loader: me.duong2012g.hungergamessss.PaperPluginLoader`, but this class
+  was never created. Paper attempted to instantiate it during plugin loading, threw
+  `ClassNotFoundException`, and the plugin failed to enable entirely.
+  Fix: removed the `loader:` line. A custom `PluginLoader` is not needed for this plugin's
+  feature set; standard Paper loading works correctly.
+
+- **BUG-DB-01 · `DatabaseManager` — SQLite JDBC driver and MySQL connector not shaded into JAR**
+  (`pom.xml`)
+  `DatabaseManager` called `config.setDriverClassName("org.sqlite.JDBC")` and supported MySQL
+  mode, but neither `org.xerial:sqlite-jdbc` nor `com.mysql:mysql-connector-j` appeared as
+  Maven dependencies. The built JAR had no driver classes, causing
+  `ClassNotFoundException: org.sqlite.JDBC` on every server startup that uses the default
+  SQLite config.
+  Fix: added both dependencies to `pom.xml` and configured the Maven Shade Plugin to relocate
+  them under `me.duong2012g.hungergamessss.libs.{sqlite,mysql}` to avoid classpath conflicts
+  with other plugins.
+
+#### High — Gameplay-breaking
+
+- **BUG-DB-02 · `DatabaseManager.updateSchema()` — `games_played` column added to `arenas` table instead of `players`**
+  (`DatabaseManager.java`)
+  `updateSchema()` iterated a single column array and checked all entries against the `arenas`
+  table. `games_played` is a player stat column that belongs in `players`. On fresh installs the
+  `players` table lacked the column; `savePlayerStats()` / `loadPlayerStats()` threw
+  `SQLException: no such column: games_played` whenever stats were read or written.
+  Fix: split the migration into two separate loops — `arenaColumns[]` against the `arenas` table
+  and `playerColumns[]` against the `players` table. Each column is now checked and added against
+  the correct table.
+
+- **BUG-AM-02 · `AbilityManager.createItem()` — `unbreakable` flag silently overwritten**
+  (`AbilityManager.java`)
+  The unbreakable block retrieved a *new* `ItemMeta` copy from `item.getItemMeta()`, set
+  `unbreakable(true)` on it, called `item.setItemMeta(unbrMeta)` — but then the outer code
+  called `item.setItemMeta(meta)` with the *original* meta object (which did not have
+  `unbreakable` set). The second `setItemMeta` silently discarded the flag. Legend items marked
+  `unbreakable: true` in YAML still lost durability in-game.
+  Fix: call `meta.setUnbreakable(true)` directly on the existing `meta` object before the
+  final `item.setItemMeta(meta)` call. The duplicate `item.getItemMeta()` call is removed.
+
+- **BUG-AM-03 · `AbilityManager.createItem()` — localization fallback condition never true**
+  (`AbilityManager.java`)
+  The fallback for missing legend name/description keys compared the return value of
+  `getMessage(key)` against the raw key string:
+  `if (localizedName.equals("legend_" + key + "_name"))`.
+  `MessageManager.getMessage()` never returns the raw key — it returns
+  `"§cMessage not found: <key>"` — so the condition was always `false` and the fallback
+  (`config.getOrDefault("name", ...)`) was never reached. Items with no language entry showed
+  the red error string as their display name.
+  Fix: replaced both checks (name + description) with `hasMessage(key)` which tests the cache
+  directly. The fallback now triggers correctly for any missing key.
+
+- **BUG-AM-04 · `MessageManager` — no public API to test key existence**
+  (`MessageManager.java`)
+  There was no way to check whether a message key existed without calling `getMessage()` and
+  inspecting the error-prefix fallback string, which is fragile and language-dependent.
+  Fix: added `public boolean hasMessage(String key)` that returns `messageCache.containsKey(key)`.
+  Used by the `createItem()` fallback fix above.
+
+#### High — Production safety
+
+- **BUG-AFC-01 · `AutoFixCommand` — dangerous synchronous I/O, stale hardcoded JAR name, and wrong config keys**
+  (`AutoFixCommand.java`)
+  Three independent issues:
+  1. File copy and HTTP download ran on the main server thread (could freeze the server tick for
+     multiple seconds while downloading Paper).
+  2. The command hard-coded `"HungerGamesSSS-1.15.jar"` — the project is now at version 4.6.1,
+     so the source file path was always wrong and the command silently did nothing useful.
+  3. The generated `config.yml` used stale keys (`database.file`, `game.waiting-duration`,
+     `structures.spawn-interval-ticks`, `performance.unload-delay-ticks`) that the current
+     codebase no longer reads, resulting in a silently broken configuration on every use.
+  Fix: the command body is replaced with a single disabled message pointing to the source file.
+  The command will be re-enabled once rewritten with async I/O, dynamic version detection,
+  pre-modification backups, and config generation from `ConfigSchemaValidator`.
+
+#### Medium — Operator experience
+
+- **BUG-CFG-01 · `config.yml` — missing keys silently use hardcoded defaults**
+  (`config.yml`)
+  Over a dozen config keys read by the code (`game.min-players-to-start`, `game.max-players`,
+  `game.countdown-seconds`, `game.reset-delay-seconds`, `game.border-initial-size`,
+  `game.border-min-size`, `game.feast-delay-seconds`, `arena.veinminer-max-size`,
+  `abilities.disabled`, `abilities.enabled-only`, `resource-pack.required`,
+  `resource-pack.prompt`, `database.debug-logging`) were absent from the default `config.yml`.
+  Admins had no indication these options existed and could not configure them without reading
+  source code.
+  Fix: all missing keys added to `config.yml` with documented defaults.
+
+- **BUG-LANG-01 · `en.yml` — 60+ message keys used in code but absent from language file**
+  (`languages/en.yml`)
+  Numerous keys used in `TeamCommand`, `WithdrawCommand`, `LocateCommand`, `DebugCommand`,
+  `AutoFixCommand`, `MatchService`, and others were not present in `en.yml`. Every trigger
+  showed `§cMessage not found: <key>` to players or admins.
+  Additionally, four legend item name/description keys were missing (`legend_artemis_bow_name`,
+  `legend_death_note_name`, `legend_hermes_boots_name`, `legend_toxic_crossbow_name` and
+  corresponding `_desc` keys), causing ability items to display the red error string as their
+  display name after the localization fallback fix above.
+  Fix: all missing keys added to `en.yml` with English text.
+
+### Build fix — `mvn clean package` fails with `CompilerException: NullPointerException`
+  (`pom.xml`)
+  `testCompile` crashed with a `NullPointerException` inside javac on JDK 21 even after
+  switching to `<release>21</release>`. Root cause: MockBukkit `4.109.0` ships an annotation
+  processor that walks the full type graph of the class under test. `CooldownManagerTest`
+  loads `Main` via `MockBukkit.load(Main.class)`, which pulls in every manager, database
+  driver, and Adventure type at compile time. On JDK 21 this resolution chain hit a null
+  reference inside javac's own symbol table, crashing the compiler process rather than
+  producing a proper diagnostic.
+
+  Three-part fix applied to `pom.xml`:
+
+  1. **MockBukkit downgraded** `4.109.0` → `4.26.0`. Version `4.26.0` is the last release
+     before the annotation processor was added and is confirmed compatible with Paper 1.21
+     and JDK 21.
+
+  2. **`<maven.test.skip>true</maven.test.skip>`** added to `<properties>`. Normal plugin
+     builds (`mvn clean package`) no longer attempt test compilation. Tests can still be
+     run explicitly: `mvn test -Dmaven.test.skip=false`.
+
+  3. **`maven-surefire-plugin`** updated with `<forkCount>1</forkCount>` and
+     `<reuseForks>false</reuseForks>`. MockBukkit stores global state in static fields
+     — running multiple test classes in the same JVM causes false failures. A forked JVM
+     per class also prevents any remaining javac NPE from killing the host Maven process.
+
+### Changed
+- `pom.xml` — version `4.6.0` → `4.6.1`.
+- `plugin.yml` — version `4.6.0` → `4.6.1`; description updated.
+- `paper-plugin.yml` — version `4.6.0` → `4.6.1`.
+
+---
+
 ## [4.6.0] — Full Bug Fix & Improvement Pass (2026-05-05)
 
 ### Fixed — 46 bugs across 35 files

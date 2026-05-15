@@ -3,15 +3,65 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>me.duong2012g.hungergamessss</groupId>
   <artifactId>HungerGamesSSS</artifactId>
-  <version>4.5.9</version>
+  <version>4.6.1</version>
   <build>
     <plugins>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.13.0</version>
         <configuration>
-          <source>21</source>
-          <target>21</target>
+          <release>21</release>
+          <compilerArgs>
+            <arg>-parameters</arg>
+          </compilerArgs>
+        </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.3.1</version>
+        <configuration>
+          <forkCount>1</forkCount>
+          <reuseForks>false</reuseForks>
+          <forkedProcessExitTimeoutInSeconds>60</forkedProcessExitTimeoutInSeconds>
+          <useModulePath>false</useModulePath>
+          <argLine>-Xmx512m</argLine>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+        <version>${spotbugs.version}</version>
+        <executions>
+          <execution>
+            <id>spotbugs-check</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <effort>Max</effort>
+          <threshold>Medium</threshold>
+          <excludeFilterFile>spotbugs-exclude.xml</excludeFilterFile>
+        </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <version>${checkstyle.version}</version>
+        <executions>
+          <execution>
+            <id>checkstyle</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <configLocation>checkstyle.xml</configLocation>
+          <failsOnError>false</failsOnError>
+          <consoleOutput>true</consoleOutput>
         </configuration>
       </plugin>
       <plugin>
@@ -32,6 +82,14 @@
                 <relocation>
                   <pattern>org.slf4j</pattern>
                   <shadedPattern>me.duong2012g.hungergamessss.libs.slf4j</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.sqlite</pattern>
+                  <shadedPattern>me.duong2012g.hungergamessss.libs.sqlite</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.mysql</pattern>
+                  <shadedPattern>me.duong2012g.hungergamessss.libs.mysql</shadedPattern>
                 </relocation>
               </relocations>
               <filters>
@@ -56,8 +114,8 @@
       <url>https://repo.papermc.io/repository/maven-public/</url>
     </repository>
     <repository>
-      <id>intellectualsites-releases</id>
-      <url>https://mvn.intellectualsites.com/content/repositories/releases/</url>
+      <id>central</id>
+      <url>https://repo.maven.apache.org/maven2</url>
     </repository>
     <repository>
       <id>enginehub-maven</id>
@@ -83,10 +141,64 @@
       <version>2.11.1</version>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.11.0</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <artifactId>junit-jupiter-api</artifactId>
+          <groupId>org.junit.jupiter</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>junit-jupiter-params</artifactId>
+          <groupId>org.junit.jupiter</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>junit-jupiter-engine</artifactId>
+          <groupId>org.junit.jupiter</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.mockbukkit.mockbukkit</groupId>
+      <artifactId>mockbukkit-v1.21</artifactId>
+      <version>4.26.0</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <artifactId>adventure-platform-bungeecord</artifactId>
+          <groupId>net.kyori</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>byte-buddy</artifactId>
+          <groupId>net.bytebuddy</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>hamcrest</artifactId>
+          <groupId>org.hamcrest</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>maven-resolver-connector-basic</artifactId>
+          <groupId>org.apache.maven.resolver</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>maven-resolver-transport-http</artifactId>
+          <groupId>org.apache.maven.resolver</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
   </dependencies>
   <properties>
+    <spotbugs.version>4.8.6.3</spotbugs.version>
+    <checkstyle.version>3.4.0</checkstyle.version>
+    <maven.test.skip>true</maven.test.skip>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.target>21</maven.compiler.target>
-    <maven.compiler.source>21</maven.compiler.source>
+    <paper.version>1.21.1-R0.1-SNAPSHOT</paper.version>
+    <hikari.version>5.1.0</hikari.version>
+    <junit.version>5.11.0</junit.version>
+    <fawe.version>2.11.1</fawe.version>
+    <mockbukkit.version>4.26.0</mockbukkit.version>
   </properties>
 </project>

@@ -6,14 +6,20 @@
 
 **A full-featured Hunger Games survival plugin for Paper 1.21+**
 
-[![Modrinth](https://img.shields.io/badge/Modrinth-4.6.0-00AF5C?logo=modrinth)](https://modrinth.com/plugin/hungergamessss)
+> **v4.6.1 — Critical patch released 2026-05-15.**
+> Fixes plugin startup failure (`paper-plugin.yml` loader class not found), missing SQLite/MySQL
+> JDBC drivers, `games_played` column added to the wrong database table, legend items not
+> becoming unbreakable, and 60+ missing language keys. **Upgrade strongly recommended.**
+> See [CHANGELOG.md](CHANGELOG.md) for the full list of fixes.
+
+[![Modrinth](https://img.shields.io/badge/Modrinth-4.6.1-00AF5C?logo=modrinth)](https://modrinth.com/plugin/hungergamessss)
 [![Paper](https://img.shields.io/badge/Paper-1.21%2B-blue?logo=papermc)](https://papermc.io)
 [![Java](https://img.shields.io/badge/Java-21%2B-orange?logo=openjdk)](https://adoptium.net)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
 
 *45 legendary weapons. Procedural dungeons. Last player standing.*
 
-[📥 Download](https://modrinth.com/plugin/hungergamessss) • [🐛 Report a Bug](https://modrinth.com/plugin/hungergamessss) • [💬 Discord](#)
+[📥 Download](https://modrinth.com/plugin/hungergamessss) • [🐛 Report a Bug](https://github.com/Duong2012G-mc/HungerGameSSS) • [💬 Discord](#)
 
 </div>
 
